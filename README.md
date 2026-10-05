@@ -1,4 +1,4 @@
-# FLIP//RUN
+# FLIP // RUN
 
 One-tap gravity runner for Android, by Vaibhav Golam. Tap to flip gravity and run on the floor or the ceiling. Dodge spikes, blocks and gaps, grab coins, and survive through four zones (Neon Night, Aurora, Sunset, Ember). Sound effects and a music loop are generated in code, so there are no audio files. Both can be switched off with the buttons on the menu screen. Best score, coins and everything you buy are saved on the phone.
 
