@@ -49,6 +49,19 @@ public class MainActivity extends Activity {
     }
 
     @Override
+    public void onBackPressed() {
+        // back button pauses the game instead of closing it mid-run
+        if (web != null) web.evaluateJavascript("window.__pause && window.__pause()", null);
+        else super.onBackPressed();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (web != null) web.evaluateJavascript("window.__pause && window.__pause()", null);
+    }
+
+    @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
         if (hasFocus) hideSystemUi();

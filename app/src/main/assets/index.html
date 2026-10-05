@@ -1406,6 +1406,7 @@ function drawHUD() {
   coinIcon(vx0() + 24, 42, 8);
   txt(String(earned), vx0() + 38, 48, F(17, 800), '#FFFFFF', 'left');
   if (state !== 'dead') drawChips();
+  if (state === 'play') drawPauseIcon();
   if (mode === 'daily') txt('DAILY CHALLENGE', W / 2, 24, F(11, 900), rgba('accent2', 1));
   if (combo > 1) txt('x' + combo, P.x + 4, P.y + (P.g > 0 ? -34 : 44) * Math.max(1, sz * 0.9), F(14, 900), '#FFD65A', 'center', 'rgba(0,0,0,0.5)', 3);
 }
@@ -1479,12 +1480,30 @@ function drawMenuUI() {
   walletTop(); levelBadge();
   drawButtons();
 }
+function pauseL() {
+  const y = H * 0.5;
+  return { resume: { x: W / 2, y: y + 8, w: 220, h: 48 }, restart: { x: W / 2 - 60, y: y + 72, w: 108, h: 40 }, home: { x: W / 2 + 60, y: y + 72, w: 108, h: 40 } };
+}
+function pauseBtn() { const b = btnPos(0); return { x: b.x, y: b.y, w: 48, h: 48 }; }
+function drawPauseIcon() {
+  const b = btnPos(0);
+  ctx.fillStyle = 'rgba(255,255,255,0.14)'; ctx.beginPath(); ctx.arc(b.x, b.y, 19, 0, TAU); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.fillStyle = '#FFFFFF'; rrect(b.x - 7, b.y - 8, 5, 16, 1.5); ctx.fill(); rrect(b.x + 2, b.y - 8, 5, 16, 1.5); ctx.fill();
+}
 function drawPaused() {
-  ctx.fillStyle = 'rgba(5,6,24,0.6)'; ctx.fillRect(vx0() - 2, -2, vx1() - vx0() + 4, H + 4);
-  txt('PAUSED', W / 2, H * 0.42, F(46, 900, true), '#FFFFFF');
-  txt('Tap to resume', W / 2, H * 0.42 + 34, F(18, 700), rgba('accent', 1));
+  ctx.fillStyle = 'rgba(5,6,24,0.66)'; ctx.fillRect(vx0() - 2, -2, vx1() - vx0() + 4, H + 4);
+  txt('PAUSED', W / 2, H * 0.5 - 60, F(46, 900, true), '#FFFFFF');
+  txt('Score ' + score + '   Best ' + best, W / 2, H * 0.5 - 28, F(16, 700), rgba('accent', 1));
+  const L = pauseL();
+  glowOn(C.accent, 12); ctx.fillStyle = '#FFFFFF'; rrect(L.resume.x - 110, L.resume.y - 24, 220, 48, 24); ctx.fill(); glowOff();
+  txt('RESUME', W / 2, L.resume.y + 7, F(20, 900), C.slab);
+  ghostBtn(L.restart); txt('RESTART', L.restart.x, L.restart.y + 5, F(13, 900), '#FFFFFF');
+  ghostBtn(L.home); txt('HOME', L.home.x, L.home.y + 5, F(13, 900), '#FFFFFF');
   drawButtons();
 }
+function resumeGame() { state = 'play'; invuln = Math.max(invuln, 1.2); startMusic(); sfx.tick(); }
+function pauseGame() { if (state === 'play') { state = 'paused'; stopMusic(); sfx.tick(); } }
 
 /* ---- game over ---- */
 function deadL() {
@@ -1949,12 +1968,25 @@ function press(p) {
     }
     startGame(mode); return;
   }
-  if (state === 'paused') { state = 'play'; startMusic(); return; }
-  if (state === 'play') tryFlip();
+  if (state === 'paused') {
+    if (p) {
+      const L = pauseL();
+      if (inR(p, L.resume)) { resumeGame(); return; }
+      if (inR(p, L.restart)) { startGame(mode); return; }
+      if (inR(p, L.home)) { goHome(); return; }
+    }
+    return;
+  }
+  if (state === 'play') {
+    if (p && inR(p, pauseBtn())) { pauseGame(); return; }
+    tryFlip();
+  }
 }
 cv.addEventListener('pointerdown', e => { e.preventDefault(); press(toLogical(e)); }, { passive: false });
 window.addEventListener('contextmenu', e => e.preventDefault());
 window.addEventListener('keydown', e => {
+  if ((e.code === 'Escape' || e.code === 'KeyP') && state === 'play') { pauseGame(); return; }
+  if ((e.code === 'Escape' || e.code === 'KeyP') && state === 'paused') { resumeGame(); return; }
   if (e.code === 'Escape' && state === 'store') { state = stFrom; return; }
   if (e.code === 'Escape' && state === 'goals') { state = 'menu'; return; }
   if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'ArrowDown' || e.code === 'KeyW') {
@@ -1966,6 +1998,7 @@ function pauseIfPlaying() {
   if (state === 'play') { state = 'paused'; stopMusic(); }
   if (ac && ac.state === 'running') ac.suspend();
 }
+window.__pause = pauseIfPlaying;
 document.addEventListener('visibilitychange', () => { if (document.hidden) pauseIfPlaying(); });
 window.addEventListener('blur', pauseIfPlaying);
 window.addEventListener('pagehide', saveWallet);
@@ -1983,7 +2016,7 @@ function frame(ts) {
 requestAnimationFrame(frame);
 
 window.__ST = {
-  update, render, press, startGame, tryFlip, P, obs, coins, revive, watchAd, goHome, openStore, itemsFor, itemState, doAction, gridRects, up, own,
+  pauseBtn, pauseL, update, render, press, startGame, tryFlip, P, obs, coins, revive, watchAd, goHome, openStore, itemsFor, itemState, doAction, gridRects, up, own,
   get state() { return state; }, set state(v) { state = v; },
   get score() { return score; }, get speed() { return speed; }, get best() { return best; },
   get killer() { return lastKiller; }, get zone() { return zoneIdx; }, get playTime() { return playTime; },
